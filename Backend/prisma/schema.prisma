@@ -1,0 +1,87 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         Int       @id @default(autoincrement())
+  name       String
+  email      String    @unique
+  password   String
+  role       String    @default("Analyst")
+  createdAt  DateTime  @default(now())
+
+  datasets   Dataset[]
+}
+
+model Dataset {
+  id           Int       @id @default(autoincrement())
+  filename     String
+  uploadDate   DateTime  @default(now())
+  status       String
+
+  uploadedById Int
+  uploadedBy   User      @relation(fields: [uploadedById], references: [id])
+
+  posts        Post[]
+  analyses     AnalysisResult[]
+  reports      Report[]
+}
+
+model Post {
+  id                Int       @id @default(autoincrement())
+  postId            String @unique
+  author            String
+  content           String    @db.Text
+  createdAt         DateTime
+  isMisinformation  Boolean   @default(false)
+
+  datasetId         Int
+  dataset           Dataset   @relation(fields: [datasetId], references: [id])
+
+  hashtags          Hashtag[]
+  interactions      Interaction[]
+}
+
+model Hashtag {
+  id        Int      @id @default(autoincrement())
+  hashtag   String
+
+  postId    Int
+  post      Post     @relation(fields: [postId], references: [id])
+}
+
+model Interaction {
+  id              Int      @id @default(autoincrement())
+  sourceUser      String
+  targetUser      String
+  interactionType String
+
+  postId          Int
+  post            Post     @relation(fields: [postId], references: [id])
+}
+
+model AnalysisResult {
+  id                Int       @id @default(autoincrement())
+  degreeCentrality  Float
+  betweenness       Float
+  closeness         Float
+  eigenvector       Float
+  generatedAt       DateTime  @default(now())
+
+  datasetId         Int
+  dataset           Dataset   @relation(fields: [datasetId], references: [id])
+}
+
+model Report {
+  id           Int       @id @default(autoincrement())
+  title        String
+  generatedAt  DateTime  @default(now())
+
+  datasetId    Int
+  dataset      Dataset   @relation(fields: [datasetId], references: [id])
+}

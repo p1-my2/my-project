@@ -1,0 +1,6 @@
+postId,author,content,createdAt,sourceUser,targetUser,interactionType
+6,Frank,"Fake story spreading quickly #Election",2026-07-22,Frank,Alice,Reply
+7,Grace,"Government health update #Health",2026-07-22,Grace,Bob,Retweet
+8,Henry,"Verify before sharing #FactCheck",2026-07-22,Henry,Carol,Mention
+9,Irene,"Election rumours continue #Rumour",2026-07-22,Irene,David,Reply
+10,James,"Breaking news on vaccines #Health",2026-07-22,James,Eve,Retweet
