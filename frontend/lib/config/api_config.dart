@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 
 class ApiConfig {
-  /// Set this for a real phone using --dart-define=API_BASE_URL=http://<PC-IP>:5000/api.
+  /// Set this for a real phone using `--dart-define=API_BASE_URL=http://PC-IP:5000/api`.
   static const _configuredBaseUrl = String.fromEnvironment('API_BASE_URL');
 
   static String get baseUrl {

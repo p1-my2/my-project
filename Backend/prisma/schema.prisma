@@ -25,26 +25,34 @@ model Dataset {
   status       String
 
   uploadedById Int
-  uploadedBy   User      @relation(fields: [uploadedById], references: [id])
+  uploadedBy   User      @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
 
   posts        Post[]
   analyses     AnalysisResult[]
   reports      Report[]
+
+  @@index([uploadDate])
+  @@index([uploadedById])
 }
 
 model Post {
   id                Int       @id @default(autoincrement())
-  postId            String @unique
+  postId            String
   author            String
   content           String    @db.Text
   createdAt         DateTime
   isMisinformation  Boolean   @default(false)
 
   datasetId         Int
-  dataset           Dataset   @relation(fields: [datasetId], references: [id])
+  dataset           Dataset   @relation(fields: [datasetId], references: [id], onDelete: Cascade)
 
   hashtags          Hashtag[]
   interactions      Interaction[]
+
+  @@unique([datasetId, postId])
+  @@index([createdAt])
+  @@index([datasetId])
+  @@index([isMisinformation])
 }
 
 model Hashtag {
@@ -52,7 +60,10 @@ model Hashtag {
   hashtag   String
 
   postId    Int
-  post      Post     @relation(fields: [postId], references: [id])
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([hashtag])
+  @@index([postId])
 }
 
 model Interaction {
@@ -62,7 +73,11 @@ model Interaction {
   interactionType String
 
   postId          Int
-  post            Post     @relation(fields: [postId], references: [id])
+  post            Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([sourceUser])
+  @@index([targetUser])
+  @@index([postId])
 }
 
 model AnalysisResult {
@@ -74,7 +89,9 @@ model AnalysisResult {
   generatedAt       DateTime  @default(now())
 
   datasetId         Int
-  dataset           Dataset   @relation(fields: [datasetId], references: [id])
+  dataset           Dataset   @relation(fields: [datasetId], references: [id], onDelete: Cascade)
+
+  @@index([datasetId])
 }
 
 model Report {
@@ -83,5 +100,7 @@ model Report {
   generatedAt  DateTime  @default(now())
 
   datasetId    Int
-  dataset      Dataset   @relation(fields: [datasetId], references: [id])
+  dataset      Dataset   @relation(fields: [datasetId], references: [id], onDelete: Cascade)
+
+  @@index([datasetId])
 }

@@ -25,7 +25,7 @@ class DashboardCard extends StatelessWidget {
 
             CircleAvatar(
               radius: 28,
-              backgroundColor: color.withOpacity(.15),
+              backgroundColor: color.withValues(alpha: 0.15),
               child: Icon(
                 icon,
                 color: color,

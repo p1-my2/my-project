@@ -1,7 +1,10 @@
 require("dotenv").config();
 
+const path = require("path");
 const express = require("express");
 const cors = require("cors");
+const swaggerUi = require("swagger-ui-express");
+const swaggerDocument = require("./docs/swagger.json");
 
 const authRoutes = require("./routes/authRoutes");
 const datasetRoutes = require("./routes/datasetRoutes");
@@ -15,8 +18,7 @@ const app = express();
  * ===============================
  * Middlewares
  * ===============================
- */const path = require("path");
-
+ */
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // Enable Cross-Origin Resource Sharing
@@ -30,14 +32,22 @@ app.use(express.urlencoded({ extended: true }));
 
 /**
  * ===============================
+ * Interactive API Documentation
+ * ===============================
+ */
+app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+
+/**
+ * ===============================
  * Root Route
  * ===============================
  */
 app.get("/", (req, res) => {
-    res.status(200).json({
-        success: true,
-        message: "Misinformation Dashboard API is running successfully."
-    });
+  res.status(200).json({
+    success: true,
+    message: "Misinformation Dashboard API is running successfully.",
+    docs: "/api/docs",
+  });
 });
 
 /**
@@ -58,6 +68,7 @@ app.use("/api/analysis", analysisRoutes);
 // Report Module
 app.use("/api/reports", reportRoutes);
 
+// Upload Shortcut
 app.use("/api/upload", uploadRoutes);
 
 /**
@@ -66,10 +77,10 @@ app.use("/api/upload", uploadRoutes);
  * ===============================
  */
 app.use((req, res) => {
-    res.status(404).json({
-        success: false,
-        message: "Route not found."
-    });
+  res.status(404).json({
+    success: false,
+    message: "Route not found.",
+  });
 });
 
 /**
@@ -78,12 +89,13 @@ app.use((req, res) => {
  * ===============================
  */
 app.use((err, req, res, next) => {
-    console.error("Server Error:", err);
+  console.error("Server Error:", err);
 
-    res.status(err.status || 500).json({
-        success: false,
-        message: err.message || "Internal Server Error"
-    });
+  const statusCode = err.status || err.statusCode || 500;
+  res.status(statusCode).json({
+    success: false,
+    message: err.message || "Internal Server Error",
+  });
 });
 
 module.exports = app;

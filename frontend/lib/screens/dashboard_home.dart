@@ -1,13 +1,23 @@
 import 'package:flutter/material.dart';
 
 import '../models/dashboard_summary.dart';
+import '../models/dataset_model.dart';
 import '../models/hashtag_model.dart';
 import '../services/analysis_service.dart';
 import '../widgets/dashboard_card.dart';
 import '../widgets/dashboard_header.dart';
 
 class DashboardHome extends StatefulWidget {
-  const DashboardHome({super.key});
+  final int? datasetId;
+  final List<DatasetModel> datasets;
+  final ValueChanged<int?>? onDatasetChanged;
+
+  const DashboardHome({
+    super.key,
+    this.datasetId,
+    this.datasets = const [],
+    this.onDatasetChanged,
+  });
 
   @override
   State<DashboardHome> createState() => _DashboardHomeState();
@@ -22,8 +32,22 @@ class _DashboardHomeState extends State<DashboardHome> {
   @override
   void initState() {
     super.initState();
-    dashboard = analysisService.getDashboardSummary();
-    hashtags = analysisService.getHashtags();
+    _loadData();
+  }
+
+  void _loadData() {
+    dashboard = analysisService.getDashboardSummary(datasetId: widget.datasetId);
+    hashtags = analysisService.getHashtags(datasetId: widget.datasetId);
+  }
+
+  @override
+  void didUpdateWidget(covariant DashboardHome oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.datasetId != widget.datasetId) {
+      setState(() {
+        _loadData();
+      });
+    }
   }
 
   @override
@@ -51,7 +75,11 @@ class _DashboardHomeState extends State<DashboardHome> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
 
-              const DashboardHeader(),
+              DashboardHeader(
+                datasets: widget.datasets,
+                selectedDatasetId: widget.datasetId,
+                onDatasetChanged: widget.onDatasetChanged,
+              ),
 
               const SizedBox(height: 30),
 

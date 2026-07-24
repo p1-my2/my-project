@@ -1,109 +1,37 @@
-const prisma = require("../config/prisma");
-const bcrypt = require("bcrypt");
-const { generateToken } = require("../utils/jwt");
+const { registerUser, loginUser } = require("../services/authService");
 
-// Register a new user
-async function register(req, res) {
+async function register(req, res, next) {
   try {
-    const { name, email, password } = req.body;
-
-    if (!name || !email || !password) {
-      return res.status(400).json({
-        message: "Name, email and password are required."
-      });
-    }
-
-    const existingUser = await prisma.user.findUnique({
-      where: { email }
-    });
-
-    if (existingUser) {
-      return res.status(409).json({
-        message: "Email already exists."
-      });
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const user = await prisma.user.create({
-      data: {
-        name,
-        email,
-        password: hashedPassword
-      }
-    });
-
+    const user = await registerUser(req.body);
     res.status(201).json({
       message: "User registered successfully.",
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role
-      }
+      user,
     });
-
   } catch (error) {
-    console.error(error);
-
-    res.status(500).json({
-      message: "Registration failed."
-    });
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({ message: error.message });
+    }
+    next(error);
   }
 }
 
-// Login user
-async function login(req, res) {
-
+async function login(req, res, next) {
   try {
-
-    const { email, password } = req.body;
-
-    const user = await prisma.user.findUnique({
-      where: { email }
-    });
-
-    if (!user) {
-      return res.status(401).json({
-        message: "Invalid email or password."
-      });
-    }
-
-    const passwordMatch = await bcrypt.compare(
-      password,
-      user.password
-    );
-
-    if (!passwordMatch) {
-      return res.status(401).json({
-        message: "Invalid email or password."
-      });
-    }
-
-    const token = generateToken(user);
-
-    res.json({
+    const data = await loginUser(req.body);
+    res.status(200).json({
       message: "Login successful.",
-      token,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role
-      }
+      token: data.token,
+      user: data.user,
     });
-
   } catch (error) {
-  console.error(error);
-
-  res.status(500).json({
-    success: false,
-    message: error.message
-  });
-}
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({ message: error.message });
+    }
+    next(error);
+  }
 }
 
 module.exports = {
   register,
-  login
+  login,
 };

@@ -1,7 +1,11 @@
 const express = require("express");
 const upload = require("../middleware/uploadMiddleware");
-
-const router = express.Router();
+const { requireAuth } = require("../middleware/authMiddleware");
+const {
+  validateCreateDataset,
+  validateIdParam,
+  validateFileUpload,
+} = require("../middleware/validationMiddleware");
 
 const {
   createDataset,
@@ -9,25 +13,21 @@ const {
   getDataset,
   deleteDataset,
   uploadDataset,
-  searchDatasets
+  searchDatasets,
 } = require("../controllers/datasetController");
 
-const {
-  requireAuth
-} = require("../middleware/authMiddleware");
+const router = express.Router();
 
-
-router.post("/", requireAuth, createDataset);
-
+router.post("/", requireAuth, validateCreateDataset, createDataset);
 router.get("/", requireAuth, getDatasets);
-
 router.get("/search", requireAuth, searchDatasets);
-
-router.get("/:id", requireAuth, getDataset);
-
-router.delete("/:id", requireAuth, deleteDataset);
-
-router.post("/upload", requireAuth, upload.single("file"),
+router.get("/:id", requireAuth, validateIdParam("id"), getDataset);
+router.delete("/:id", requireAuth, validateIdParam("id"), deleteDataset);
+router.post(
+  "/upload",
+  requireAuth,
+  upload.single("file"),
+  validateFileUpload,
   uploadDataset
 );
 

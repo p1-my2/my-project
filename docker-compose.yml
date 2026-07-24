@@ -1,0 +1,51 @@
+name: misinformation-platform
+
+services:
+  db:
+    image: mysql:8.4
+    container_name: misinfo-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: Kimani
+      MYSQL_DATABASE: misinformation_dashboard
+      MYSQL_USER: kimani
+      MYSQL_PASSWORD: Kimani
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-pKimani"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    networks:
+      - app-network
+
+  backend:
+    build:
+      context: ./Backend
+      dockerfile: Dockerfile
+    container_name: misinfo-backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORT: 5000
+      DATABASE_URL: mysql://root:Kimani@db:3306/misinformation_dashboard
+      JWT_SECRET: zYryDneqKLujH2RCe6C4o88NbgFEBECVp4pYA5dHVut
+      NODE_ENV: production
+    ports:
+      - "0.0.0.0:5000:5000"
+    networks:
+      - app-network
+
+volumes:
+  mysql_data:
+    driver: local
+
+networks:
+  app-network:
+    driver: bridge

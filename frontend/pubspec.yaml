@@ -42,9 +42,10 @@ dependencies:
   # Local Storage
   shared_preferences: ^2.5.5
 
-  # Charts
+  # Charts & Visualizations
   fl_chart: ^1.1.1
   file_picker: ^10.3.3
+  graphview: ^1.2.0
 
 dev_dependencies:
   flutter_test:

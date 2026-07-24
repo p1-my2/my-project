@@ -1,0 +1,197 @@
+openapi: 3.0.3
+info:
+  title: Misinformation Diffusion Dashboard & SNA Platform API
+  description: Production RESTful API for Social Network Analysis, misinformation tracking, dataset management, and automated report generation.
+  version: 1.0.0
+servers:
+  - url: http://localhost:5000/api
+    description: Local Development Server
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: Dr. Jane Doe
+        email:
+          type: string
+          example: jane.doe@university.edu
+        role:
+          type: string
+          example: Analyst
+    Dataset:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 12
+        filename:
+          type: string
+          example: twitter_misinfo_batch.csv
+        uploadDate:
+          type: string
+          format: date-time
+        status:
+          type: string
+          example: Uploaded
+        uploadedById:
+          type: integer
+          example: 1
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: Validation or authentication error message
+paths:
+  /auth/register:
+    post:
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password]
+              properties:
+                name:
+                  type: string
+                  example: Dr. Jane Doe
+                email:
+                  type: string
+                  example: jane.doe@university.edu
+                password:
+                  type: string
+                  example: SecurePass123!
+      responses:
+        '201':
+          description: User registered successfully
+        '400':
+          description: Validation error
+        '409':
+          description: Email already registered
+  /auth/login:
+    post:
+      summary: Authenticate user and issue JWT token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  example: jane.doe@university.edu
+                password:
+                  type: string
+                  example: SecurePass123!
+      responses:
+        '200':
+          description: Login successful
+        '401':
+          description: Invalid credentials
+  /datasets:
+    get:
+      summary: List datasets with optional search query
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of datasets
+    post:
+      summary: Create dataset record manually
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [filename]
+              properties:
+                filename:
+                  type: string
+                status:
+                  type: string
+      responses:
+        '201':
+          description: Dataset created
+  /datasets/upload:
+    post:
+      summary: Upload CSV dataset and perform batch import
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: CSV dataset uploaded and imported
+  /analysis/dashboard:
+    get:
+      summary: Get dashboard system summary statistics
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: datasetId
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Dashboard statistics
+  /analysis/network:
+    get:
+      summary: Get Social Network Analysis (SNA) graph data
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: datasetId
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: SNA Nodes, edges, and centrality metrics
+  /reports/pdf/{datasetId}:
+    get:
+      summary: Generate and download automated PDF report
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: datasetId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: PDF stream

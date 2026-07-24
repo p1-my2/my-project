@@ -1,8 +1,8 @@
 const express = require("express");
-
 const router = express.Router();
 
 const { requireAuth } = require("../middleware/authMiddleware");
+const { validateIdParam } = require("../middleware/validationMiddleware");
 
 const {
   getReports,
@@ -12,19 +12,10 @@ const {
   deleteReport,
 } = require("../controllers/reportController");
 
-// Get all reports
 router.get("/", requireAuth, getReports);
-
-// Get one report
-router.get("/:id", requireAuth, getReport);
-
-// Download PDF
-router.get("/pdf/:datasetId", requireAuth, generatePDF);
-
-// Export CSV
-router.get("/csv/:datasetId", requireAuth, exportCSV);
-
-// Delete report
-router.delete("/:id", requireAuth, deleteReport);
+router.get("/:id", requireAuth, validateIdParam("id"), getReport);
+router.get("/pdf/:datasetId", requireAuth, validateIdParam("datasetId"), generatePDF);
+router.get("/csv/:datasetId", requireAuth, validateIdParam("datasetId"), exportCSV);
+router.delete("/:id", requireAuth, validateIdParam("id"), deleteReport);
 
 module.exports = router;

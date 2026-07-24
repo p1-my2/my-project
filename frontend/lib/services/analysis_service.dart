@@ -8,6 +8,7 @@ import '../models/dashboard_summary.dart';
 import '../models/dataset_model.dart';
 import '../models/hashtag_model.dart';
 import '../models/influencer_model.dart';
+import '../models/network_model.dart';
 import '../models/timeline_model.dart';
 
 class AnalysisService {
@@ -23,9 +24,13 @@ class AnalysisService {
   }
 
   /// Dashboard Summary
-  Future<DashboardSummary> getDashboardSummary() async {
+  Future<DashboardSummary> getDashboardSummary({int? datasetId}) async {
+    final String url = datasetId != null
+        ? "${ApiConfig.baseUrl}/analysis/dashboard?datasetId=$datasetId"
+        : "${ApiConfig.baseUrl}/analysis/dashboard";
+
     final response = await http.get(
-      Uri.parse("${ApiConfig.baseUrl}/analysis/dashboard"),
+      Uri.parse(url),
       headers: await _getHeaders(),
     );
 
@@ -39,9 +44,13 @@ class AnalysisService {
   }
 
   /// Top Hashtags
-  Future<List<HashtagModel>> getHashtags() async {
+  Future<List<HashtagModel>> getHashtags({int? datasetId}) async {
+    final String url = datasetId != null
+        ? "${ApiConfig.baseUrl}/analysis/hashtags?datasetId=$datasetId"
+        : "${ApiConfig.baseUrl}/analysis/hashtags";
+
     final response = await http.get(
-      Uri.parse("${ApiConfig.baseUrl}/analysis/hashtags"),
+      Uri.parse(url),
       headers: await _getHeaders(),
     );
 
@@ -75,9 +84,13 @@ class AnalysisService {
   }
 
   /// Top Influencers
-  Future<List<InfluencerModel>> getInfluencers() async {
+  Future<List<InfluencerModel>> getInfluencers({int? datasetId}) async {
+    final String url = datasetId != null
+        ? "${ApiConfig.baseUrl}/analysis/influencers?datasetId=$datasetId"
+        : "${ApiConfig.baseUrl}/analysis/influencers";
+
     final response = await http.get(
-      Uri.parse("${ApiConfig.baseUrl}/analysis/influencers"),
+      Uri.parse(url),
       headers: await _getHeaders(),
     );
 
@@ -93,9 +106,13 @@ class AnalysisService {
   }
 
   /// Timeline Analysis
-  Future<List<TimelineModel>> getTimeline() async {
+  Future<List<TimelineModel>> getTimeline({int? datasetId}) async {
+    final String url = datasetId != null
+        ? "${ApiConfig.baseUrl}/analysis/timeline?datasetId=$datasetId"
+        : "${ApiConfig.baseUrl}/analysis/timeline";
+
     final response = await http.get(
-      Uri.parse("${ApiConfig.baseUrl}/analysis/timeline"),
+      Uri.parse(url),
       headers: await _getHeaders(),
     );
 
@@ -108,5 +125,25 @@ class AnalysisService {
     }
 
     throw Exception(json["message"] ?? "Failed to load timeline.");
+  }
+
+  /// Network Statistics & Graph Data
+  Future<NetworkDataModel> getNetworkData({int? datasetId}) async {
+    final String url = datasetId != null
+        ? "${ApiConfig.baseUrl}/analysis/network?datasetId=$datasetId"
+        : "${ApiConfig.baseUrl}/analysis/network";
+
+    final response = await http.get(
+      Uri.parse(url),
+      headers: await _getHeaders(),
+    );
+
+    final json = jsonDecode(response.body);
+
+    if (response.statusCode == 200) {
+      return NetworkDataModel.fromJson(json["data"]);
+    }
+
+    throw Exception(json["message"] ?? "Failed to load network graph data.");
   }
 }
