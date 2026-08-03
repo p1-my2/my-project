@@ -1,4 +1,4 @@
-require("dotenv").config();
+const config = require("./config/env");
 
 const fs = require("fs");
 const path = require("path");
@@ -48,17 +48,26 @@ const limiter = rateLimit({
 });
 app.use("/api/", limiter);
 
-// Dynamic CORS Configuration
-const allowedOrigins = [
+/**
+ * Robust CORS Configuration
+ */
+const defaultLocalOrigins = [
   "http://localhost:3000",
   "http://localhost:5000",
+  "http://localhost:5173",
+  "http://localhost:8080",
   "http://127.0.0.1:3000",
   "http://127.0.0.1:5000",
+  "http://127.0.0.1:5173",
+  "http://127.0.0.1:8080",
 ];
 
-if (process.env.CORS_ORIGIN) {
-  process.env.CORS_ORIGIN.split(",").forEach((origin) => {
-    allowedOrigins.push(origin.trim());
+const configuredOrigins = new Set(defaultLocalOrigins);
+
+if (config.CORS_ORIGIN) {
+  config.CORS_ORIGIN.split(",").forEach((origin) => {
+    const trimmed = origin.trim();
+    if (trimmed) configuredOrigins.add(trimmed);
   });
 }
 
@@ -67,14 +76,17 @@ app.use(
     origin: (origin, callback) => {
       // Allow requests with no origin (mobile apps, curl, postman)
       if (!origin) return callback(null, true);
+      
       if (
-        allowedOrigins.includes(origin) ||
+        configuredOrigins.has(origin) ||
         origin.endsWith(".netlify.app") ||
-        process.env.NODE_ENV !== "production"
+        origin.endsWith(".railway.app") ||
+        origin.endsWith(".onrender.com") ||
+        config.NODE_ENV !== "production"
       ) {
         return callback(null, true);
       }
-      return callback(null, true); // Permissive fallback for release candidate deployment
+      return callback(null, true); // Permissive fallback for release deployment
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
@@ -87,30 +99,47 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use("/uploads", express.static(uploadsDir));
 
 /**
- * Interactive API Documentation
+ * Dynamic Interactive API Documentation (Swagger)
  */
-app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+app.use("/api/docs", (req, res, next) => {
+  const protocol = req.headers["x-forwarded-proto"] || req.protocol || "http";
+  const host = req.headers["x-forwarded-host"] || req.get("host");
+  const dynamicServerUrl = `${protocol}://${host}/api`;
+
+  const dynamicSwaggerDoc = {
+    ...swaggerDocument,
+    servers: [
+      { url: dynamicServerUrl, description: "Active Environment Server" },
+      { url: "http://localhost:5000/api", description: "Local Development Server" },
+    ],
+  };
+
+  swaggerUi.setup(dynamicSwaggerDoc)(req, res, next);
+}, swaggerUi.serve);
 
 /**
- * Health Check Endpoint
+ * Health Check Endpoint (Clean non-stacktrace DB check)
  */
 app.get("/health", async (req, res) => {
-  let dbStatus = "disconnected";
+  let isDbConnected = false;
+
   try {
     await prisma.$queryRaw`SELECT 1`;
-    dbStatus = "connected";
+    isDbConnected = true;
   } catch (err) {
-    dbStatus = `error: ${err.message}`;
+    isDbConnected = false;
   }
 
-  const isHealthy = dbStatus === "connected";
-  res.status(isHealthy ? 200 : 503).json({
-    status: isHealthy ? "ok" : "degraded",
-    uptime: process.uptime(),
-    database: dbStatus,
+  const status = isDbConnected ? "ok" : "degraded";
+  const statusCode = isDbConnected ? 200 : 503;
+
+  res.status(statusCode).json({
+    status: status,
+    uptime: Math.floor(process.uptime()),
+    environment: config.NODE_ENV,
+    version: config.API_VERSION,
+    database: isDbConnected ? "connected" : "disconnected",
     timestamp: new Date().toISOString(),
-    version: process.env.API_VERSION || "1.0.0-rc1",
-    environment: process.env.NODE_ENV || "development",
   });
 });
 
@@ -149,12 +178,12 @@ app.use((req, res) => {
  * Global Error Handler
  */
 app.use((err, req, res, next) => {
-  console.error("Server Error:", err);
+  console.error("Server Error:", err.message);
   const statusCode = err.status || err.statusCode || 500;
   res.status(statusCode).json({
     success: false,
     message: err.message || "Internal Server Error",
-    ...(process.env.NODE_ENV !== "production" ? { stack: err.stack } : {}),
+    ...(config.NODE_ENV !== "production" ? { stack: err.stack } : {}),
   });
 });
 

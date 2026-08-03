@@ -23,8 +23,8 @@ The rapid spread of online misinformation across social platforms threatens publ
 - **Provider Central State Engine**: Centralized reactive state (`DashboardProvider`) ensuring dataset selection updates graphs, timelines, spreaders, hashtags, and reports reactively without state desynchronization.
 - **Research Design System (Light & Dark Themes)**: Academic slate visual identity with monospace numerical metric displays, color-coded claim badges, and light/dark theme switching.
 - **Mobile-First Touch Architecture**: Progressive responsive design supporting phone drawer navigation & bottom sheet inspectors, tablet split views, and desktop navigation rails.
-- **Structured JSON Audit Logging & Standardized API Envelopes**: Backend middleware emitting JSON audit metrics and `{ success: true, data, meta }` response envelopes.
-- **Swagger / OpenAPI 3.0 Documentation**: Embedded interactive API documentation served directly at `/api/docs`.
+- **Resilient Cloud & Railway Hardening**: Centralized Zod environment validation with automatic `MYSQL_URL` $\rightarrow$ `DATABASE_URL` mapping for Railway, Render, Fly.io, Docker, and Localhost.
+- **Swagger / OpenAPI 3.0 Documentation**: Embedded interactive API documentation served dynamically at `/api/docs`.
 
 ---
 
@@ -34,10 +34,11 @@ The rapid spread of online misinformation across social platforms threatens publ
 - **Runtime**: Node.js v22+ (`node:22-alpine`)
 - **Framework**: Express.js v5.2
 - **Database & ORM**: MySQL 8.4 LTS with Prisma ORM v6.19
+- **Validation & Environment**: Zod v4.4 & Dotenv
 - **Containerization**: Docker Multi-Stage Build & Docker Compose (v2)
 - **Logging**: Structured JSON Audit Logger
 - **API Envelope**: Standardized `{ success, data, meta }` Response Envelopes
-- **Documentation**: Swagger UI Express / OpenAPI 3.0
+- **Documentation**: Dynamic Swagger UI Express / OpenAPI 3.0
 
 ### Frontend Architecture
 - **Framework**: Flutter 3.12+ (Dart SDK 3.12+)
@@ -48,40 +49,35 @@ The rapid spread of online misinformation across social platforms threatens publ
 
 ---
 
-## 📁 System Folder Structure
+## ☁️ Cloud Deployment Configuration (Railway, Render, Fly.io)
 
+### Railway Deployment & Environment Variables
+
+When deploying the backend on **Railway.app**, Railway automatically provisions MySQL and sets the connection environment variable `MYSQL_URL`.
+
+The backend includes an automatic fallback module (`src/config/env.js`) that checks for `MYSQL_URL` before initializing Prisma:
+```javascript
+if (!process.env.DATABASE_URL && process.env.MYSQL_URL) {
+  process.env.DATABASE_URL = process.env.MYSQL_URL;
+}
 ```
-my-project/
-├── docker-compose.yml              # Root Multi-Container Orchestration (MySQL 8.4 + Node.js)
-├── Backend/
-│   ├── Dockerfile                  # Multi-Stage Production Dockerfile (node:22-alpine)
-│   ├── docker-entrypoint.sh        # Container Boot Script (Prisma Migrations + Express)
-│   ├── prisma/
-│   │   ├── migrations/             # SQL Migration History
-│   │   └── schema.prisma           # Prisma Relational Model & Indexes
-│   └── src/
-│       ├── config/                 # Prisma Client Connection
-│       ├── controllers/            # Request Controllers
-│       ├── middleware/             # Auth & Structured Request Logger Middleware
-│       ├── routes/                 # Express API Routes
-│       ├── services/               # Core Domain & SNA Services
-│       ├── utils/                  # API Response Envelopes & Helpers
-│       ├── app.js                  # Express App Instance
-│       └── server.js               # Server Entry Point
-└── frontend/
-    └── lib/
-        ├── config/                 # API & ResearchTheme Configuration
-        ├── models/                 # Dart Models (Network, Timeline, Summary)
-        ├── providers/              # DashboardProvider State Engine
-        ├── screens/                # Mobile-First & Desktop Flutter Screens
-        ├── services/               # REST HTTP Services
-        ├── widgets/                # Reusable UI & Graph Painter Widgets
-        └── main.dart               # Flutter Application Entry Point
-```
+
+#### Required Railway Environment Variables
+
+| Variable Name | Required | Description | Example |
+| :--- | :---: | :--- | :--- |
+| `DATABASE_URL` | **Yes** *(or `MYSQL_URL`)* | Connection string for MySQL 8 | `mysql://root:pass@host:3306/db` |
+| `MYSQL_URL` | *Auto* | Automatically provided by Railway MySQL service | `mysql://root:pass@host:3306/railway` |
+| `JWT_SECRET` | **Yes** | Secret key for JWT token signing | `openssl rand -base64 32` |
+| `PORT` | *Auto* | Internal service port (Railway sets this dynamically) | `8080` / `5000` |
+| `NODE_ENV` | Optional | Set to `production` for cloud deployment | `production` |
+| `CORS_ORIGIN` | Optional | Comma-separated list of allowed Netlify/Frontend URLs | `https://my-app.netlify.app` |
+
+> **Recommendation**: While the code automatically handles `MYSQL_URL`, creating a variable reference `DATABASE_URL=${{MySQL.MYSQL_URL}}` in Railway settings is recommended for explicit configuration.
 
 ---
 
-## 💻 Running the Application
+## 💻 Running the Application Locally
 
 ### 1. Backend Service
 ```bash
@@ -102,10 +98,11 @@ flutter run -d chrome
 
 ## 📑 Interactive API Documentation
 
-Access live Swagger UI when the backend is running at:
+Access live Swagger UI dynamically at:
 ```
 http://localhost:5000/api/docs
 ```
+*(In production, Swagger automatically updates server URLs to reflect your live cloud domain, e.g. `https://<your-railway-app>.up.railway.app/api`).*
 
 ---
 
