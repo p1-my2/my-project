@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-
-import '../models/dataset_model.dart';
-import '../services/analysis_service.dart';
+import 'package:provider/provider.dart';
+import '../providers/dashboard_provider.dart';
+import '../widgets/side_menu.dart';
 import 'dashboard_home.dart';
 import 'datasets_screen.dart';
 import 'hashtags_screen.dart';
@@ -10,8 +10,6 @@ import 'network_analysis_screen.dart';
 import 'reports_screen.dart';
 import 'timeline_screen.dart';
 import 'login_screen.dart';
-
-import '../widgets/side_menu.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -22,74 +20,39 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   int selectedIndex = 0;
-  int? selectedDatasetId;
-  List<DatasetModel> datasets = [];
 
-  @override
-  void initState() {
-    super.initState();
-    _fetchDatasets();
-  }
-
-  Future<void> _fetchDatasets() async {
-    try {
-      final result = await AnalysisService().getDatasets();
-      if (mounted) {
-        setState(() {
-          datasets = result;
-        });
-      }
-    } catch (e) {
-      // Failed to load datasets
-    }
-  }
-
-  void _onDatasetChanged(int? id) {
-    setState(() {
-      selectedDatasetId = id;
-    });
-  }
-
-  Widget _buildPage(int index) {
+  Widget _buildPage(int index, int? datasetId) {
     switch (index) {
       case 0:
-        return DashboardHome(
-          datasetId: selectedDatasetId,
-          datasets: datasets,
-          onDatasetChanged: _onDatasetChanged,
-        );
+        return const DashboardHome();
       case 1:
         return const DatasetsScreen();
       case 2:
-        return InfluencersScreen(datasetId: selectedDatasetId);
+        return InfluencersScreen(datasetId: datasetId);
       case 3:
-        return HashtagsScreen(datasetId: selectedDatasetId);
+        return HashtagsScreen(datasetId: datasetId);
       case 4:
-        return TimelineScreen(datasetId: selectedDatasetId);
+        return TimelineScreen(datasetId: datasetId);
       case 5:
-        return NetworkAnalysisScreen(datasetId: selectedDatasetId);
+        return NetworkAnalysisScreen(datasetId: datasetId);
       case 6:
-        return ReportsScreen(datasetId: selectedDatasetId);
+        return ReportsScreen(datasetId: datasetId);
       default:
-        return DashboardHome(
-          datasetId: selectedDatasetId,
-          datasets: datasets,
-          onDatasetChanged: _onDatasetChanged,
-        );
+        return const DashboardHome();
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final provider = Provider.of<DashboardProvider>(context);
     final width = MediaQuery.of(context).size.width;
     final isMobile = width < 600;
 
     return Scaffold(
       appBar: isMobile
           ? AppBar(
-              title: const Text('Misinformation Dashboard'),
-              backgroundColor: Colors.blueGrey.shade900,
-              foregroundColor: Colors.white,
+              title: const Text('Misinformation Diffusion Analysis'),
+              centerTitle: false,
             )
           : null,
       drawer: isMobile
@@ -97,7 +60,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: SideMenu(
                 selectedIndex: selectedIndex,
                 onItemSelected: (index) {
-                  Navigator.pop(context); // Close drawer
+                  Navigator.pop(context);
                   if (index == 7) {
                     Navigator.of(context).pushAndRemoveUntil(
                       MaterialPageRoute(
@@ -107,7 +70,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     );
                     return;
                   }
-
                   setState(() {
                     selectedIndex = index;
                   });
@@ -130,14 +92,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   );
                   return;
                 }
-
                 setState(() {
                   selectedIndex = index;
                 });
               },
             ),
           Expanded(
-            child: _buildPage(selectedIndex),
+            child: _buildPage(selectedIndex, provider.selectedDatasetId),
           ),
         ],
       ),

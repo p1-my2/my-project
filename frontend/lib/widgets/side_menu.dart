@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
+import '../config/research_theme.dart';
 import '../screens/login_screen.dart';
 
 class SideMenu extends StatelessWidget {
@@ -31,78 +31,108 @@ class SideMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       width: 240,
-      color: Colors.blueGrey.shade900,
+      decoration: BoxDecoration(
+        color: isDark ? ResearchTheme.darkSurface : ResearchTheme.lightSurface,
+        border: Border(
+          right: BorderSide(
+            color: isDark ? ResearchTheme.darkBorder : ResearchTheme.lightBorder,
+          ),
+        ),
+      ),
       child: Column(
         children: [
-          const SizedBox(height: 40),
+          const SizedBox(height: 30),
 
-          const Icon(
-            Icons.analytics,
-            color: Colors.white,
-            size: 60,
-          ),
-
-          const SizedBox(height: 10),
-
-          const Text(
-            "MISINFORMATION\nDASHBOARD",
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
+          CircleAvatar(
+            radius: 28,
+            backgroundColor: isDark ? ResearchTheme.darkPrimary.withValues(alpha: 0.2) : ResearchTheme.lightPrimary.withValues(alpha: 0.1),
+            child: Icon(
+              Icons.hub_outlined,
+              color: isDark ? ResearchTheme.darkPrimary : ResearchTheme.lightPrimary,
+              size: 32,
             ),
           ),
 
-          const Divider(color: Colors.white24),
+          const SizedBox(height: 12),
 
-          _menuItem(context, Icons.dashboard, "Dashboard", 0),
-          _menuItem(context, Icons.folder, "Datasets", 1),
-          _menuItem(context, Icons.people, "Influencers", 2),
-          _menuItem(context, Icons.tag, "Hashtags", 3),
-          _menuItem(context, Icons.timeline, "Timeline", 4),
-          _menuItem(context, Icons.hub, "Network Analysis", 5),
-          _menuItem(context, Icons.description, "Reports", 6),
+          Text(
+            "RESEARCH INTELLIGENCE\nDASHBOARD",
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.6,
+              color: isDark ? ResearchTheme.darkTextPrimary : ResearchTheme.lightTextPrimary,
+            ),
+          ),
 
-          const Spacer(),
+          const SizedBox(height: 16),
+          Divider(color: isDark ? ResearchTheme.darkBorder : ResearchTheme.lightBorder),
 
-          _menuItem(context, Icons.logout, "Logout", 7),
+          Expanded(
+            child: ListView(
+              children: [
+                _menuItem(context, Icons.dashboard_outlined, "Dashboard", 0, isDark),
+                _menuItem(context, Icons.folder_open_outlined, "Datasets", 1, isDark),
+                _menuItem(context, Icons.people_outline, "Top Spreaders", 2, isDark),
+                _menuItem(context, Icons.numbers_outlined, "Hashtags", 3, isDark),
+                _menuItem(context, Icons.show_chart_outlined, "Timeline", 4, isDark),
+                _menuItem(context, Icons.hub_outlined, "SNA Propagation", 5, isDark),
+                _menuItem(context, Icons.assessment_outlined, "Reports", 6, isDark),
+              ],
+            ),
+          ),
 
-          const SizedBox(height: 20),
+          Divider(color: isDark ? ResearchTheme.darkBorder : ResearchTheme.lightBorder),
+          _menuItem(context, Icons.logout_outlined, "Logout", 7, isDark),
+
+          const SizedBox(height: 16),
         ],
       ),
     );
   }
 
-  Widget _menuItem(BuildContext context, IconData icon, String title, int index) {
+  Widget _menuItem(BuildContext context, IconData icon, String title, int index, bool isDark) {
     final selected = selectedIndex == index;
+    final primaryColor = isDark ? ResearchTheme.darkPrimary : ResearchTheme.lightPrimary;
 
-    return InkWell(
-      onTap: () {
-        if (index == 7) {
-          _handleLogout(context);
-        } else {
-          onItemSelected(index);
-        }
-      },
-      child: Container(
-        color: selected ? Colors.blue : Colors.transparent,
-        padding: const EdgeInsets.symmetric(
-          horizontal: 20,
-          vertical: 18,
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+      decoration: BoxDecoration(
+        color: selected
+            ? (isDark ? primaryColor.withValues(alpha: 0.18) : primaryColor.withValues(alpha: 0.1))
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: ListTile(
+        dense: true,
+        onTap: () {
+          if (index == 7) {
+            _handleLogout(context);
+          } else {
+            onItemSelected(index);
+          }
+        },
+        leading: Icon(
+          icon,
+          color: selected
+              ? primaryColor
+              : (isDark ? ResearchTheme.darkTextSecondary : ResearchTheme.lightTextSecondary),
+          size: 20,
         ),
-        child: Row(
-          children: [
-            Icon(icon, color: Colors.white),
-            const SizedBox(width: 15),
-            Text(
-              title,
-              style: const TextStyle(
-                color: Colors.white,
-              ),
-            ),
-          ],
+        title: Text(
+          title,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: selected ? FontWeight.bold : FontWeight.w500,
+            color: selected
+                ? primaryColor
+                : (isDark ? ResearchTheme.darkTextPrimary : ResearchTheme.lightTextPrimary),
+          ),
         ),
       ),
     );

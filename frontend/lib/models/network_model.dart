@@ -35,6 +35,7 @@ class NetworkNodeModel {
   }
 
   double get influenceScore => (degreeCentrality * 100).clamp(0.0, 100.0);
+  double get reachScore => (degreeCentrality * 1000 + outDegree * 50.0);
 }
 
 class NetworkEdgeModel {

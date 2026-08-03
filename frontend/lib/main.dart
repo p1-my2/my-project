@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'config/research_theme.dart';
+import 'providers/dashboard_provider.dart';
 import 'screens/login_screen.dart';
 
 void main() {
@@ -10,16 +13,20 @@ class MisinformationDashboardApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Misinformation Dashboard',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.blue,
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(
+          create: (_) => DashboardProvider()..initialize(),
         ),
-        useMaterial3: true,
+      ],
+      child: MaterialApp(
+        title: 'Research Intelligence Dashboard',
+        debugShowCheckedModeBanner: false,
+        theme: ResearchTheme.lightThemeData,
+        darkTheme: ResearchTheme.darkThemeData,
+        themeMode: ThemeMode.system,
+        home: const LoginScreen(),
       ),
-      home: const LoginScreen(),
     );
   }
 }

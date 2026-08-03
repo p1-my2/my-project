@@ -12,6 +12,8 @@ const analysisRoutes = require("./routes/analysisRoutes");
 const reportRoutes = require("./routes/reportRoutes");
 const uploadRoutes = require("./routes/uploadRoutes");
 
+const requestLogger = require("./middleware/requestLogger");
+
 const app = express();
 
 /**
@@ -19,6 +21,7 @@ const app = express();
  * Middlewares
  * ===============================
  */
+app.use(requestLogger);
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // Enable Cross-Origin Resource Sharing

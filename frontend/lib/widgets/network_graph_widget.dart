@@ -8,7 +8,7 @@ class NetworkGraphWidget extends StatefulWidget {
   final List<NetworkEdgeModel> edges;
   final NetworkNodeModel? selectedNode;
   final String searchQuery;
-  final Function(NetworkNodeModel node) onNodeSelected;
+  final Function(NetworkNodeModel node)? onNodeSelected;
 
   const NetworkGraphWidget({
     super.key,
@@ -16,7 +16,7 @@ class NetworkGraphWidget extends StatefulWidget {
     required this.edges,
     this.selectedNode,
     this.searchQuery = '',
-    required this.onNodeSelected,
+    this.onNodeSelected,
   });
 
   @override
@@ -96,7 +96,7 @@ class _NetworkGraphWidgetState extends State<NetworkGraphWidget> {
     }
 
     if (tappedNode != null) {
-      widget.onNodeSelected(tappedNode);
+      widget.onNodeSelected?.call(tappedNode);
     }
   }
 

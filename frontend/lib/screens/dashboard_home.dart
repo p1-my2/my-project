@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
-
-import '../models/dashboard_summary.dart';
+import 'package:provider/provider.dart';
 import '../models/dataset_model.dart';
-import '../models/hashtag_model.dart';
-import '../services/analysis_service.dart';
-import '../widgets/dashboard_card.dart';
+import '../providers/dashboard_provider.dart';
 import '../widgets/dashboard_header.dart';
+import '../widgets/metric_kpi_cards.dart';
+import '../widgets/network_graph_widget.dart';
+import '../widgets/timeline_chart_widget.dart';
+import '../widgets/top_spreaders_widget.dart';
+import '../widgets/dataset_explorer_widget.dart';
+import '../widgets/reports_summary_widget.dart';
+import '../widgets/shimmer_loading_widget.dart';
 
-class DashboardHome extends StatefulWidget {
+class DashboardHome extends StatelessWidget {
   final int? datasetId;
   final List<DatasetModel> datasets;
   final ValueChanged<int?>? onDatasetChanged;
@@ -20,209 +24,118 @@ class DashboardHome extends StatefulWidget {
   });
 
   @override
-  State<DashboardHome> createState() => _DashboardHomeState();
-}
-
-class _DashboardHomeState extends State<DashboardHome> {
-  final AnalysisService analysisService = AnalysisService();
-
-  late Future<DashboardSummary> dashboard;
-  late Future<List<HashtagModel>> hashtags;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadData();
-  }
-
-  void _loadData() {
-    dashboard = analysisService.getDashboardSummary(datasetId: widget.datasetId);
-    hashtags = analysisService.getHashtags(datasetId: widget.datasetId);
-  }
-
-  @override
-  void didUpdateWidget(covariant DashboardHome oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.datasetId != widget.datasetId) {
-      setState(() {
-        _loadData();
-      });
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return FutureBuilder<DashboardSummary>(
-      future: dashboard,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: CircularProgressIndicator(),
-          );
-        }
+    final provider = Provider.of<DashboardProvider>(context);
 
-        if (snapshot.hasError) {
-          return Center(
-            child: Text(snapshot.error.toString()),
-          );
-        }
+    if (provider.isLoading && provider.summary == null) {
+      return const ShimmerDashboardLoading();
+    }
 
-        final data = snapshot.data!;
+    if (provider.errorMessage != null && provider.summary == null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 48, color: Colors.red),
+            const SizedBox(height: 12),
+            Text(provider.errorMessage!, style: const TextStyle(color: Colors.grey)),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () => provider.initialize(),
+              child: const Text('Retry Connection'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isDesktop = constraints.maxWidth >= 1024;
 
         return SingleChildScrollView(
-          padding: const EdgeInsets.all(25),
+          padding: EdgeInsets.all(isDesktop ? 20 : 14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-
+              // 1. Top Workflow Toolbar & Active Dataset Selector
               DashboardHeader(
-                datasets: widget.datasets,
-                selectedDatasetId: widget.datasetId,
-                onDatasetChanged: widget.onDatasetChanged,
+                datasets: datasets.isNotEmpty ? datasets : provider.datasets,
+                selectedDatasetId: datasetId ?? provider.selectedDatasetId,
+                onDatasetChanged: onDatasetChanged ?? (id) => provider.selectDataset(id),
               ),
 
-              const SizedBox(height: 30),
+              const SizedBox(height: 18),
 
-              Wrap(
-                spacing: 20,
-                runSpacing: 20,
-                children: [
+              // 2. Summary Research KPI Metric Cards
+              const MetricKpiCards(),
 
-                  SizedBox(
-                    width: 250,
-                    child: DashboardCard(
-                      title: "Users",
-                      value: data.totalUsers.toString(),
-                      icon: Icons.people,
-                      color: Colors.blue,
-                    ),
-                  ),
+              const SizedBox(height: 20),
 
-                  SizedBox(
-                    width: 250,
-                    child: DashboardCard(
-                      title: "Datasets",
-                      value: data.totalDatasets.toString(),
-                      icon: Icons.folder,
-                      color: Colors.orange,
-                    ),
-                  ),
-
-                  SizedBox(
-                    width: 250,
-                    child: DashboardCard(
-                      title: "Posts",
-                      value: data.totalPosts.toString(),
-                      icon: Icons.article,
-                      color: Colors.green,
-                    ),
-                  ),
-
-                  SizedBox(
-                    width: 250,
-                    child: DashboardCard(
-                      title: "Hashtags",
-                      value: data.totalHashtags.toString(),
-                      icon: Icons.tag,
-                      color: Colors.purple,
-                    ),
-                  ),
-
-                  SizedBox(
-                    width: 250,
-                    child: DashboardCard(
-                      title: "Reports",
-                      value: data.totalReports.toString(),
-                      icon: Icons.description,
-                      color: Colors.red,
-                    ),
-                  ),
-
-                  SizedBox(
-                    width: 250,
-                    child: DashboardCard(
-                      title: "Misinformation",
-                      value: data.misinformationPosts.toString(),
-                      icon: Icons.warning,
-                      color: Colors.deepOrange,
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 40),
-
-              const Text(
-                "Recent Activity",
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-
-              const SizedBox(height: 15),
-
-              Card(
-                elevation: 2,
-                child: Padding(
-                  padding: const EdgeInsets.all(10),
-                  child: Column(
-                    children: const [
-
-                      ListTile(
-                        leading: Icon(Icons.upload_file,
-                            color: Colors.blue),
-                        title: Text("Dataset Uploaded"),
-                        subtitle: Text("twitter_dataset.csv"),
+              // 3. Central Research Canvas Layout
+              if (isDesktop)
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Network Graph (Primary Artifact - 60% Width)
+                    Expanded(
+                      flex: 6,
+                      child: SizedBox(
+                        height: 580,
+                        child: NetworkGraphWidget(
+                          nodes: provider.networkData?.nodes ?? [],
+                          edges: provider.networkData?.edges ?? [],
+                        ),
                       ),
-
-                      Divider(),
-
-                      ListTile(
-                        leading: Icon(Icons.analytics,
-                            color: Colors.green),
-                        title: Text("Analysis Completed"),
-                        subtitle: Text("5 posts analysed successfully"),
+                    ),
+                    const SizedBox(width: 18),
+                    // Supporting Analytics Column (40% Width)
+                    const Expanded(
+                      flex: 4,
+                      child: Column(
+                        children: [
+                          TimelineChartWidget(),
+                          SizedBox(height: 18),
+                          TopSpreadersWidget(),
+                        ],
                       ),
-
-                      Divider(),
-
-                      ListTile(
-                        leading: Icon(Icons.tag,
-                            color: Colors.orange),
-                        title: Text("Hashtags Extracted"),
-                        subtitle: Text("7 hashtags detected"),
+                    ),
+                  ],
+                )
+              else
+                Column(
+                  children: [
+                    SizedBox(
+                      height: 420,
+                      child: NetworkGraphWidget(
+                        nodes: provider.networkData?.nodes ?? [],
+                        edges: provider.networkData?.edges ?? [],
                       ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 18),
+                    const TimelineChartWidget(),
+                    const SizedBox(height: 18),
+                    const TopSpreadersWidget(),
+                  ],
                 ),
-              ),
 
-              const SizedBox(height: 35),
+              const SizedBox(height: 20),
 
-              const Text(
-                "Top Hashtags",
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-
-              const SizedBox(height: 15),
-
-              FutureBuilder<List<HashtagModel>>(
-                future: hashtags,
-                builder: (context, tags) {
-                  if (tags.hasError) return const Text("Unable to load hashtags.");
-                  if (!tags.hasData) return const Center(child: CircularProgressIndicator());
-                  if (tags.data!.isEmpty) return const Text("Upload a dataset to view trending hashtags.");
-                  return Card(child: Column(children: tags.data!.take(5).map((tag) => ListTile(
-                    leading: const Icon(Icons.tag, color: Colors.blue), title: Text(tag.hashtag),
-                    trailing: Text(tag.count.toString(), style: const TextStyle(fontWeight: FontWeight.bold)),
-                  )).toList()));
-                },
-              ),
-
+              // 4. Bottom Section: Dataset Explorer & Reports
+              if (isDesktop)
+                const Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: DatasetExplorerWidget()),
+                    SizedBox(width: 18),
+                    Expanded(child: ReportsSummaryWidget()),
+                  ],
+                )
+              else ...[
+                const DatasetExplorerWidget(),
+                const SizedBox(height: 18),
+                const ReportsSummaryWidget(),
+              ],
             ],
           ),
         );

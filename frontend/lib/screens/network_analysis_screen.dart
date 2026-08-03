@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../config/research_theme.dart';
 import '../models/dataset_model.dart';
 import '../models/network_model.dart';
-import '../services/analysis_service.dart';
+import '../providers/dashboard_provider.dart';
 import '../widgets/dashboard_header.dart';
 import '../widgets/network_analytics_widget.dart';
 import '../widgets/network_filter_widget.dart';
@@ -22,82 +24,12 @@ class NetworkAnalysisScreen extends StatefulWidget {
 }
 
 class _NetworkAnalysisScreenState extends State<NetworkAnalysisScreen> {
-  int? _selectedDatasetId;
-  List<DatasetModel> _datasets = [];
-  NetworkDataModel? _networkData;
   NetworkNodeModel? _selectedNode;
-
-  bool _isLoading = true;
-  String? _errorMessage;
-
   NetworkFilterModel _filter = NetworkFilterModel();
 
-  @override
-  void initState() {
-    super.initState();
-    _selectedDatasetId = widget.datasetId;
-    _loadData();
-  }
-
-  @override
-  void didUpdateWidget(covariant NetworkAnalysisScreen oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.datasetId != widget.datasetId) {
-      setState(() {
-        _selectedDatasetId = widget.datasetId;
-      });
-      _loadNetworkData();
-    }
-  }
-
-  Future<void> _loadData() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
-    try {
-      final datasetList = await AnalysisService().getDatasets();
-      final network = await AnalysisService().getNetworkData(datasetId: _selectedDatasetId);
-
-      if (mounted) {
-        setState(() {
-          _datasets = datasetList;
-          _networkData = network;
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _errorMessage = e.toString();
-          _isLoading = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _loadNetworkData() async {
-    try {
-      final network = await AnalysisService().getNetworkData(datasetId: _selectedDatasetId);
-      if (mounted) {
-        setState(() {
-          _networkData = network;
-          _selectedNode = null;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _errorMessage = e.toString();
-        });
-      }
-    }
-  }
-
-  List<NetworkNodeModel> get _filteredNodes {
-    if (_networkData == null) return [];
-    return _networkData!.nodes.where((node) {
+  List<NetworkNodeModel> _getFilteredNodes(NetworkDataModel? networkData) {
+    if (networkData == null) return [];
+    return networkData.nodes.where((node) {
       if (node.degree < _filter.minDegree) return false;
       if (_filter.showOnlyMisinformation && !node.isMisinformationHub && node.rank > 5) return false;
       if (_filter.searchQuery.isNotEmpty &&
@@ -108,10 +40,10 @@ class _NetworkAnalysisScreenState extends State<NetworkAnalysisScreen> {
     }).toList();
   }
 
-  List<NetworkEdgeModel> get _filteredEdges {
-    if (_networkData == null) return [];
-    final validNodeIds = _filteredNodes.map((n) => n.id).toSet();
-    return _networkData!.edges.where((edge) {
+  List<NetworkEdgeModel> _getFilteredEdges(NetworkDataModel? networkData, List<NetworkNodeModel> filteredNodes) {
+    if (networkData == null) return [];
+    final validNodeIds = filteredNodes.map((n) => n.id).toSet();
+    return networkData.edges.where((edge) {
       if (!validNodeIds.contains(edge.source) || !validNodeIds.contains(edge.target)) {
         return false;
       }
@@ -123,27 +55,24 @@ class _NetworkAnalysisScreenState extends State<NetworkAnalysisScreen> {
     }).toList();
   }
 
-  void _showFilterBottomSheet() {
+  void _showFilterBottomSheet(List<DatasetModel> datasets, int? selectedId, Function(int?) onDatasetChanged) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) {
         return Padding(
           padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
           child: NetworkFilterWidget(
             filter: _filter,
-            datasets: _datasets,
-            selectedDatasetId: _selectedDatasetId,
+            datasets: datasets,
+            selectedDatasetId: selectedId,
             onDatasetChanged: (id) {
-              setState(() {
-                _selectedDatasetId = id;
-              });
+              onDatasetChanged(id);
               Navigator.pop(ctx);
-              _loadNetworkData();
             },
             onFilterChanged: (newFilter) {
               setState(() {
@@ -162,7 +91,7 @@ class _NetworkAnalysisScreenState extends State<NetworkAnalysisScreen> {
     );
   }
 
-  void _showNodeDetailsBottomSheet(NetworkNodeModel node) {
+  void _showNodeDetailsBottomSheet(NetworkNodeModel node, List<NetworkEdgeModel> edges) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -170,103 +99,98 @@ class _NetworkAnalysisScreenState extends State<NetworkAnalysisScreen> {
       builder: (ctx) {
         return NodeDetailsWidget(
           node: node,
-          edges: _filteredEdges,
+          edges: edges,
           onClose: () => Navigator.pop(ctx),
         );
       },
     );
   }
 
-  void _handleNodeSelect(NetworkNodeModel node, bool isMobile) {
+  void _handleNodeSelect(NetworkNodeModel node, bool isMobile, List<NetworkEdgeModel> edges) {
     setState(() {
       _selectedNode = node;
     });
 
     if (isMobile) {
-      _showNodeDetailsBottomSheet(node);
+      _showNodeDetailsBottomSheet(node, edges);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final provider = Provider.of<DashboardProvider>(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final width = MediaQuery.of(context).size.width;
     final isMobile = width < 600;
     final isTablet = width >= 600 && width < 1024;
 
+    final networkData = provider.networkData;
+    final filteredNodes = _getFilteredNodes(networkData);
+    final filteredEdges = _getFilteredEdges(networkData, filteredNodes);
+
     return Scaffold(
-      backgroundColor: const Color(0xFF0F172A),
       body: SafeArea(
         child: Column(
           children: [
-            // Header Bar
+            // Top Header Bar
             DashboardHeader(
-              title: "Social Network Analysis (SNA)",
-              selectedDatasetId: _selectedDatasetId,
-              datasets: _datasets,
-              onDatasetChanged: (id) {
-                setState(() {
-                  _selectedDatasetId = id;
-                });
-                _loadNetworkData();
-              },
+              title: "Social Network Analysis & Diffusion Engine",
+              selectedDatasetId: provider.selectedDatasetId,
+              datasets: provider.datasets,
+              onDatasetChanged: (id) => provider.selectDataset(id),
             ),
 
-            // Main Body Content
+            // Main Canvas & Inspector Area
             Expanded(
-              child: _isLoading
+              child: provider.isLoading
                   ? const Center(child: CircularProgressIndicator())
-                  : _errorMessage != null
-                      ? _buildErrorWidget()
-                      : _networkData == null || _filteredNodes.isEmpty
+                  : provider.errorMessage != null
+                      ? _buildErrorWidget(provider.errorMessage!, provider.initialize)
+                      : networkData == null || filteredNodes.isEmpty
                           ? _buildEmptyState()
                           : isMobile
-                              ? _buildMobileLayout()
+                              ? _buildMobileLayout(networkData, filteredNodes, filteredEdges)
                               : isTablet
-                                  ? _buildTabletLayout()
-                                  : _buildDesktopLayout(),
+                                  ? _buildTabletLayout(networkData, filteredNodes, filteredEdges, isDark)
+                                  : _buildDesktopLayout(networkData, filteredNodes, filteredEdges, isDark),
             ),
           ],
         ),
       ),
-      floatingActionButton: isMobile && !_isLoading && _networkData != null
+      floatingActionButton: isMobile && !provider.isLoading && networkData != null
           ? FloatingActionButton.extended(
-              heroTag: 'fabFilter',
-              onPressed: _showFilterBottomSheet,
+              heroTag: 'fabFilterSna',
+              onPressed: () => _showFilterBottomSheet(provider.datasets, provider.selectedDatasetId, provider.selectDataset),
               icon: const Icon(Icons.filter_list),
               label: const Text('Filters'),
-              backgroundColor: Colors.blue.shade700,
+              backgroundColor: isDark ? ResearchTheme.darkPrimary : ResearchTheme.lightPrimary,
               foregroundColor: Colors.white,
             )
           : null,
     );
   }
 
-  Widget _buildMobileLayout() {
+  Widget _buildMobileLayout(NetworkDataModel networkData, List<NetworkNodeModel> nodes, List<NetworkEdgeModel> edges) {
     return Stack(
       children: [
-        // Main Network Graph Canvas
         Positioned.fill(
           child: NetworkGraphWidget(
-            nodes: _filteredNodes,
-            edges: _filteredEdges,
+            nodes: nodes,
+            edges: edges,
             selectedNode: _selectedNode,
             searchQuery: _filter.searchQuery,
-            onNodeSelected: (node) => _handleNodeSelect(node, true),
+            onNodeSelected: (node) => _handleNodeSelect(node, true, edges),
           ),
         ),
-
-        // Swipeable Horizontally Cards at Top
         Positioned(
           top: 8,
           left: 0,
           right: 0,
           child: NetworkAnalyticsWidget(
-            data: _networkData!,
+            data: networkData,
             isMobile: true,
           ),
         ),
-
-        // Collapsible Educational Legend at Bottom Left
         const Positioned(
           left: 8,
           bottom: 16,
@@ -276,20 +200,19 @@ class _NetworkAnalysisScreenState extends State<NetworkAnalysisScreen> {
     );
   }
 
-  Widget _buildTabletLayout() {
+  Widget _buildTabletLayout(NetworkDataModel networkData, List<NetworkNodeModel> nodes, List<NetworkEdgeModel> edges, bool isDark) {
     return Row(
       children: [
-        // Graph Canvas (70%)
         Expanded(
           flex: 7,
           child: Stack(
             children: [
               NetworkGraphWidget(
-                nodes: _filteredNodes,
-                edges: _filteredEdges,
+                nodes: nodes,
+                edges: edges,
                 selectedNode: _selectedNode,
                 searchQuery: _filter.searchQuery,
-                onNodeSelected: (node) => _handleNodeSelect(node, false),
+                onNodeSelected: (node) => _handleNodeSelect(node, false, edges),
               ),
               const Positioned(
                 left: 12,
@@ -299,12 +222,10 @@ class _NetworkAnalysisScreenState extends State<NetworkAnalysisScreen> {
             ],
           ),
         ),
-
-        // Analytics & Filter Panel (30%)
         Expanded(
           flex: 3,
           child: Container(
-            color: const Color(0xFF1E293B),
+            color: isDark ? ResearchTheme.darkSurface : ResearchTheme.lightSurface,
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(12),
               child: Column(
@@ -312,22 +233,17 @@ class _NetworkAnalysisScreenState extends State<NetworkAnalysisScreen> {
                   if (_selectedNode != null)
                     NodeDetailsWidget(
                       node: _selectedNode!,
-                      edges: _filteredEdges,
+                      edges: edges,
                       onClose: () => setState(() => _selectedNode = null),
                     ),
                   const SizedBox(height: 12),
-                  NetworkAnalyticsWidget(data: _networkData!, isMobile: false),
+                  NetworkAnalyticsWidget(data: networkData, isMobile: false),
                   const SizedBox(height: 12),
                   NetworkFilterWidget(
                     filter: _filter,
-                    datasets: _datasets,
-                    selectedDatasetId: _selectedDatasetId,
-                    onDatasetChanged: (id) {
-                      setState(() {
-                        _selectedDatasetId = id;
-                      });
-                      _loadNetworkData();
-                    },
+                    datasets: Provider.of<DashboardProvider>(context, listen: false).datasets,
+                    selectedDatasetId: Provider.of<DashboardProvider>(context, listen: false).selectedDatasetId,
+                    onDatasetChanged: (id) => Provider.of<DashboardProvider>(context, listen: false).selectDataset(id),
                     onFilterChanged: (f) => setState(() => _filter = f),
                     onReset: () => setState(() => _filter = NetworkFilterModel()),
                   ),
@@ -340,19 +256,18 @@ class _NetworkAnalysisScreenState extends State<NetworkAnalysisScreen> {
     );
   }
 
-  Widget _buildDesktopLayout() {
+  Widget _buildDesktopLayout(NetworkDataModel networkData, List<NetworkNodeModel> nodes, List<NetworkEdgeModel> edges, bool isDark) {
     return Row(
       children: [
-        // Graph Canvas
         Expanded(
           child: Stack(
             children: [
               NetworkGraphWidget(
-                nodes: _filteredNodes,
-                edges: _filteredEdges,
+                nodes: nodes,
+                edges: edges,
                 selectedNode: _selectedNode,
                 searchQuery: _filter.searchQuery,
-                onNodeSelected: (node) => _handleNodeSelect(node, false),
+                onNodeSelected: (node) => _handleNodeSelect(node, false, edges),
               ),
               const Positioned(
                 left: 16,
@@ -362,12 +277,17 @@ class _NetworkAnalysisScreenState extends State<NetworkAnalysisScreen> {
             ],
           ),
         ),
-
-        // Side Analytics & Filter Inspector Panel
         SizedBox(
           width: 360,
           child: Container(
-            color: const Color(0xFF1E293B),
+            decoration: BoxDecoration(
+              color: isDark ? ResearchTheme.darkSurface : ResearchTheme.lightSurface,
+              border: Border(
+                left: BorderSide(
+                  color: isDark ? ResearchTheme.darkBorder : ResearchTheme.lightBorder,
+                ),
+              ),
+            ),
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -375,42 +295,40 @@ class _NetworkAnalysisScreenState extends State<NetworkAnalysisScreen> {
                   if (_selectedNode != null)
                     NodeDetailsWidget(
                       node: _selectedNode!,
-                      edges: _filteredEdges,
+                      edges: edges,
                       onClose: () => setState(() => _selectedNode = null),
                     )
                   else
                     Container(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: Colors.blueGrey.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(12),
+                        color: isDark ? ResearchTheme.darkBg : ResearchTheme.lightBg,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: isDark ? ResearchTheme.darkBorder : ResearchTheme.lightBorder,
+                        ),
                       ),
                       child: const Row(
                         children: [
-                          Icon(Icons.touch_app, color: Colors.amber),
-                          SizedBox(width: 12),
+                          Icon(Icons.touch_app, color: Colors.amber, size: 20),
+                          SizedBox(width: 10),
                           Expanded(
                             child: Text(
-                              'Tap any node in the graph to inspect centrality & metrics.',
-                              style: TextStyle(color: Colors.white70, fontSize: 12),
+                              'Tap any node in the graph to inspect centrality & Reach Score metrics.',
+                              style: TextStyle(fontSize: 12),
                             ),
                           ),
                         ],
                       ),
                     ),
                   const SizedBox(height: 16),
-                  NetworkAnalyticsWidget(data: _networkData!, isMobile: false),
+                  NetworkAnalyticsWidget(data: networkData, isMobile: false),
                   const SizedBox(height: 16),
                   NetworkFilterWidget(
                     filter: _filter,
-                    datasets: _datasets,
-                    selectedDatasetId: _selectedDatasetId,
-                    onDatasetChanged: (id) {
-                      setState(() {
-                        _selectedDatasetId = id;
-                      });
-                      _loadNetworkData();
-                    },
+                    datasets: Provider.of<DashboardProvider>(context, listen: false).datasets,
+                    selectedDatasetId: Provider.of<DashboardProvider>(context, listen: false).selectedDatasetId,
+                    onDatasetChanged: (id) => Provider.of<DashboardProvider>(context, listen: false).selectDataset(id),
                     onFilterChanged: (f) => setState(() => _filter = f),
                     onReset: () => setState(() => _filter = NetworkFilterModel()),
                   ),
@@ -423,16 +341,16 @@ class _NetworkAnalysisScreenState extends State<NetworkAnalysisScreen> {
     );
   }
 
-  Widget _buildErrorWidget() {
+  Widget _buildErrorWidget(String error, VoidCallback onRetry) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const Icon(Icons.error_outline, size: 48, color: Colors.red),
           const SizedBox(height: 12),
-          Text(_errorMessage ?? "Error loading graph data", style: const TextStyle(color: Colors.white70)),
+          Text(error, style: const TextStyle(color: Colors.grey)),
           const SizedBox(height: 16),
-          ElevatedButton(onPressed: _loadData, child: const Text("Retry")),
+          ElevatedButton(onPressed: onRetry, child: const Text("Retry")),
         ],
       ),
     );
@@ -443,11 +361,11 @@ class _NetworkAnalysisScreenState extends State<NetworkAnalysisScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.hub_outlined, size: 64, color: Colors.white38),
+          const Icon(Icons.hub_outlined, size: 64, color: Colors.grey),
           const SizedBox(height: 16),
-          const Text("No network interactions found in this dataset.", style: TextStyle(color: Colors.white70, fontSize: 16)),
+          const Text("No network interactions found in this dataset.", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          const Text("Try selecting a different dataset or resetting graph filters.", style: TextStyle(color: Colors.white38, fontSize: 12)),
+          const Text("Try selecting a different dataset or resetting graph filters.", style: TextStyle(color: Colors.grey, fontSize: 12)),
           const SizedBox(height: 16),
           ElevatedButton(
             onPressed: () {
