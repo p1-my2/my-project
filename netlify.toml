@@ -1,9 +1,9 @@
-# Netlify Configuration File for Flutter Web Deployment
+# Root Netlify Configuration File
 
 [build]
   base = "frontend"
   command = "git clone https://github.com/flutter/flutter.git -b stable --depth 1 $HOME/flutter && export PATH=\"$PATH:$HOME/flutter/bin\" && flutter precache --web && flutter build web --release"
-  publish = "build/web"
+  publish = "frontend/build/web"
 
 # Single Page Application (SPA) Routing Fallback
 [[redirects]]

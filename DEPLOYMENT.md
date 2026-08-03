@@ -89,7 +89,7 @@ This guide provides step-by-step production deployment instructions for the **Re
    * Base directory: `frontend`
    * Build command:
      ```bash
-     flutter build web --release --dart-define=API_BASE_URL=https://<your-render-service-name>.onrender.com/api
+     git clone https://github.com/flutter/flutter.git -b stable --depth 1 $HOME/flutter && export PATH="$PATH:$HOME/flutter/bin" && flutter precache --web && flutter build web --release --dart-define=API_BASE_URL=https://<your-render-service-name>.onrender.com/api
      ```
    * Publish directory: `frontend/build/web`
 3. **Netlify File Routing**:
