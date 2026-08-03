@@ -2,7 +2,7 @@
 
 [build]
   base = "frontend"
-  command = "git clone https://github.com/flutter/flutter.git -b stable --depth 1 $HOME/flutter && export PATH=\"$PATH:$HOME/flutter/bin\" && flutter precache --web && flutter build web --release"
+  command = "git clone https://github.com/flutter/flutter.git -b stable --depth 1 $HOME/flutter && export PATH=\"$PATH:$HOME/flutter/bin\" && flutter precache --web && flutter build web --release --dart-define=API_BASE_URL=$API_BASE_URL"
   publish = "build/web"
 
 # Single Page Application (SPA) Routing Fallback
